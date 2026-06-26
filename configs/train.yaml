@@ -1,0 +1,132 @@
+# Configuration for 2D CT-Conditioned PET Generation (Cross-Attention Condition)
+# This config trains a conditional diffusion model: CT -> PET
+# Model uses cross-attention to condition on CT features (not concatenation)
+# Input: x_noisy [B, 1, H, W], context: ct_in_pet_space [B, 1, H, W]
+
+# Experiment
+experiment:
+  name: "ct2pet_crossattn_2d"
+  seed: 42
+  output_dir: "checkpoints/ct2pet_crossattn_2d"
+  log_dir: "logs/ct2pet_crossattn_2d"
+
+# Dataset (PET-CT paired data)
+data:
+  dataset_type: "pet_ct_paired"
+  data_path: "/path/to/pet_ct_dataset"
+  list_path: "/path/to/split_manifests"
+  batch_size: 4
+  num_workers: 4
+  pin_memory: true
+  mini_data: false
+  mid_data: false
+  df: null
+
+# Pretrained model (from LDPET pretraining, partial loading)
+pretrained:
+  checkpoint: null
+  strict: false
+
+# Conditional Diffusion Model (Cross-Attention condition)
+diffusion:
+  # UNet with Cross-Attention architecture
+  unet:
+    in_channels: 1  # Only noisy PET (condition via cross-attention)
+    model_channels: 128
+    out_channels: 1
+    context_channels: 64  # Base channels for condition encoder
+    num_res_blocks: 2
+    attention_resolutions: [16, 8]
+    dropout: 0.1
+    channel_mult: [1, 2, 3, 4]
+    num_heads: 8
+  
+  # Diffusion process
+  timesteps: 1000
+  beta_schedule: "cosine"
+  beta_start: 0.0001
+  beta_end: 0.02
+  loss_type: "l2"
+  
+  # Sampling
+  sampling:
+    method: "ddim"
+    ddim_steps: 50
+    eta: 0.0
+
+# Training
+training:
+  epochs: 100
+  learning_rate: 0.0001
+  optimizer: "adamw"
+  betas: [0.9, 0.999]
+  weight_decay: 0.01
+  
+  scheduler:
+    type: "cosine"
+    warmup_epochs: 5
+    min_lr: 0.00001
+  
+  save_interval: 5
+  eval_interval: 1
+  save_best: true
+  grad_clip: 1.0
+  
+  use_ema: true
+  ema_decay: 0.9999
+  ema_update_interval: 1
+  
+  use_amp: false
+  log_interval: 50
+  visualize_interval: 500
+  
+  use_wandb: false
+  wandb_project: "ct2pet-crossattn-2d"
+  wandb_entity: null
+
+# Evaluation / Metrics
+evaluation:
+  num_samples: 8
+  metrics:
+    data_range: 1.0
+
+# Distributed Training
+distributed:
+  backend: "nccl"
+  find_unused_parameters: false
+
+# Resume training
+resume:
+  checkpoint: null
+  resume_training: true
+
+# =============================================================================
+# Data Consistency (DC) Configuration (Optional)
+# Physics-based correction during diffusion sampling using Physical PET Simulation
+# Set dc.enable=true to activate; CLI args override these defaults
+# =============================================================================
+dc:
+  enable: false                  # Enable DC correction during sampling
+  # DC Algorithm Parameters
+  loss_type: "l2"                  # Loss type: "l2" (Gaussian) or "poisson" (Poisson NLL)
+  step_size: 0.1                  # DC gradient step size
+  step_size_schedule: "constant"   # Schedule: "constant", "linear", "cosine"
+  step_size_start: 0.1             # Start step size (for non-constant schedules)
+  step_size_end: 0.01              # End step size (for non-constant schedules)
+  num_inner_steps: 10               # Number of DC gradient steps per diffusion step
+  start_step: 20                    # Start applying DC after this diffusion step
+  end_step: null                   # Stop applying DC after this step (null = until end)
+  clamp_min: 0.0                   # Minimum value after DC
+  clamp_max: null                  # Maximum value after DC (null = no max)
+  lowres_factor: 1                 # Lowres factor for DC (1 = no downsampling)
+  # Physical PET Simulation Parameters (used for generating y_obs and DC forward model)
+  fov_mm: null                     # FOV in mm (null = auto from image affine)
+  fwhm_mm: 6.0                     # PSF FWHM in mm
+  num_angles: 180                  # Number of projection angles
+  dose_alpha: 0.1                  # Dose scaling: 1.0=full, 0.1=10% dose
+  rebin_factor: 2                  # Angular rebinning factor (1 = no rebinning)
+  rebin_radial_factor: 2           # Radial rebinning factor (1 = no rebinning) 
+  background_beta: 0.0             # Background noise fraction
+  # Output options
+  save_simulation: false           # Save simulated sinograms and degraded images
+  save_every: 1                    # Save simulation outputs every N samples

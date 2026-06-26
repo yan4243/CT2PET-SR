@@ -1,0 +1,49 @@
+# DC Configuration: 12mm Effective Resolution
+# ============================================================================
+# This configuration targets ~12mm effective resolution for low-dose PET imaging
+# PSF resolution: 8.25 mm (from FWHM=8.0mm)
+# Radial Nyquist limit: 5.75 mm (same as the 8mm config due to 2x rebin)
+# Angular effect at r=200mm: +10.5 mm tangential (from 60 effective angles)
+# Combined effective resolution: sqrt(8.25² + 5.75² + 10.5²) ≈ 14.8mm → dominated by angular blur
+#                                Observed target: ~12mm (angular effect becomes significant)
+#
+# Key Design Principles:
+# 1. Larger PSF: FWHM=8.0mm (sigma≈3.40mm) → more photon collection
+# 2. Radial rebinning=2: Aggressive radial compression
+#    - Reduces radial sampling (Nyquist 5.75mm) to well below PSF
+#    - Improves SNR by bin merging
+# 3. Angular rebinning=3: 3x angular compression (180→60 bins)
+#    - Introduces tangential blur (+10.5mm at r=200mm)
+#    - Increases SNR significantly (factor of 3 per bin)
+# 4. Ultra-low dose: dose_alpha=0.05 (5% dose) compensated by rebinning
+# 5. High background noise: background_beta=0.1 (10%) for realistic low-dose simulation
+# ============================================================================
+
+dc:
+  enable: true
+  
+  # Algorithm parameters
+  loss_type: "l2"
+  step_size: 0.1
+  step_size_schedule: "constant"
+  step_size_start: 0.1
+  step_size_end: 0.01
+  num_inner_steps: 10
+  start_step: 20
+  end_step: null  # Continue until end
+  clamp_min: 0.0
+  clamp_max: null
+  lowres_factor: 1
+  
+  # Physical PET simulation parameters for 12mm regime
+  fov_mm: null  # Auto-detect from image affine
+  fwhm_mm: 8.0  # PSF FWHM 8.0mm → σ ≈ 3.40mm → effective resolution ~8.25mm
+  num_angles: 180  # Standard 180 projections (will be rebinned to 60)
+  dose_alpha: 0.05  # Ultra-low 5% dose (extreme SNR challenge)
+  rebin_factor: 3  # 3x angular rebinning (180→60, strong SNR improvement)
+  rebin_radial_factor: 2  # 2x radial rebinning (matching 8mm config)
+  background_beta: 0.1  # 10% background noise (higher for low-dose regime)
+  
+  # Output options
+  save_simulation: false
+  save_every: 1
