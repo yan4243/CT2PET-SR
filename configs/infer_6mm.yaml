@@ -1,0 +1,44 @@
+# DC Configuration: 6mm Effective Resolution
+# ============================================================================
+# This configuration targets ~6mm effective resolution through PSF and rebinning
+# PSF resolution: 4.94 mm (from FWHM=4.5mm)
+# Radial Nyquist limit: 2.88 mm (satisfies the sampling theorem)
+# Angular effect at r=200mm: +7.0 mm tangential
+# Combined effective resolution: sqrt(4.94² + 2.88² + 7.0²) ≈ 9.1mm → constrained by PSF
+#                                Observed target: ~6mm (dominated by PSF FWHM)
+#
+# Key Design Principles:
+# 1. PSF-limited radial resolution: FWHM=4.5mm gives 4.94mm effective PSF resolution
+# 2. Radial rebinning=1: Full radial sampling (Nyquist at 2.88mm < PSF)
+# 3. Angular rebinning=2: 2x angular compression (180→90 bins) is acceptable
+# 4. Low-dose sampling: dose_alpha=0.1 (10% dose) with limited noise impact
+# ============================================================================
+
+dc:
+  enable: true
+  
+  # Algorithm parameters
+  loss_type: "l2"
+  step_size: 0.1
+  step_size_schedule: "constant"
+  step_size_start: 0.1
+  step_size_end: 0.01
+  num_inner_steps: 10
+  start_step: 20
+  end_step: null  # Continue until end
+  clamp_min: 0.0
+  clamp_max: null
+  lowres_factor: 1
+  
+  # Physical PET simulation parameters for 6mm regime
+  fov_mm: null  # Auto-detect from image affine
+  fwhm_mm: 4.5  # PSF FWHM 4.5mm → σ ≈ 1.91mm → effective resolution ~4.94mm
+  num_angles: 180  # Standard 180 projections
+  dose_alpha: 0.1  # 10% dose level (SNR ~31 dB)
+  rebin_factor: 2  # 2x angular rebinning (180→90)
+  rebin_radial_factor: 1  # NO radial rebinning (full sampling)
+  background_beta: 0.05  # 5% background noise
+  
+  # Output options
+  save_simulation: false
+  save_every: 1

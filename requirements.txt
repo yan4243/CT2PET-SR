@@ -1,0 +1,11 @@
+numpy
+PyYAML
+torch
+torchvision
+tqdm
+matplotlib
+scikit-image
+scipy
+pydicom
+tensorboard
+astra-toolbox
